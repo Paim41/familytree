@@ -1,0 +1,1943 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Family Tree — Heritage</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+
+  <style>
+    :root {
+      --ink:       #0d1117;
+      --ink-2:     #1c2333;
+      --ink-3:     #2d3748;
+      --stone:     #4a5568;
+      --mist:      #718096;
+      --silver:    #a0aec0;
+      --pearl:     #e2e8f0;
+      --frost:     #f7f8fa;
+      --cream:     #faf9f6;
+
+      --gold:      #c9a84c;
+      --gold-lt:   #e8c97a;
+      --gold-dk:   #9b7a2e;
+      --sage:      #4a7c59;
+      --sage-lt:   #6aab7d;
+      --sage-dk:   #2e5c3f;
+      --terracotta:#b5573a;
+      --sky:       #3a7cb5;
+
+      --surface:   #ffffff;
+      --border:    rgba(0,0,0,0.08);
+      --shadow-sm: 0 1px 3px rgba(0,0,0,0.07), 0 1px 2px rgba(0,0,0,0.04);
+      --shadow-md: 0 4px 16px rgba(0,0,0,0.09), 0 2px 6px rgba(0,0,0,0.05);
+      --shadow-lg: 0 16px 48px rgba(0,0,0,0.12), 0 6px 16px rgba(0,0,0,0.07);
+      --shadow-xl: 0 32px 80px rgba(0,0,0,0.16), 0 12px 28px rgba(0,0,0,0.09);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      height: 100%; overflow: hidden;
+      font-family: 'DM Sans', sans-serif;
+      background: var(--cream);
+      color: var(--ink);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ---- SCROLLBAR ---- */
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--pearl); border-radius: 99px; }
+
+    /* ---- TYPOGRAPHY ---- */
+    .font-display { font-family: 'Cormorant Garamond', Georgia, serif; }
+    .text-gold { color: var(--gold); }
+    .text-sage { color: var(--sage); }
+
+    /* ---- GLASS ---- */
+    .glass {
+      background: rgba(255,255,255,0.82);
+      backdrop-filter: blur(24px) saturate(160%);
+      -webkit-backdrop-filter: blur(24px) saturate(160%);
+      border: 1px solid rgba(255,255,255,0.6);
+    }
+    .glass-dark {
+      background: rgba(13,17,23,0.65);
+      backdrop-filter: blur(24px) saturate(140%);
+      -webkit-backdrop-filter: blur(24px) saturate(140%);
+      border: 1px solid rgba(255,255,255,0.09);
+    }
+
+    /* ---- LAYOUT ---- */
+    #app { display: flex; flex-direction: column; height: 100vh; }
+
+    /* ---- LOADING SCREEN ---- */
+    #loading-overlay {
+      position: fixed; inset: 0; z-index: 9998;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      background: linear-gradient(160deg, #0d1117 0%, #1a2a1a 50%, #0d1a0d 100%);
+      transition: opacity 0.6s ease;
+    }
+    .load-tree-icon {
+      width: 72px; height: 72px;
+      animation: breathe 2.5s ease-in-out infinite;
+    }
+    @keyframes breathe {
+      0%,100% { transform: scale(1); opacity:1; }
+      50% { transform: scale(1.08); opacity:0.85; }
+    }
+    .load-dots span {
+      display: inline-block; width:8px; height:8px; border-radius:50%;
+      background: var(--gold); margin: 0 4px;
+      animation: dotBounce 1.4s ease-in-out infinite;
+    }
+    .load-dots span:nth-child(2) { animation-delay: .2s; }
+    .load-dots span:nth-child(3) { animation-delay: .4s; }
+    @keyframes dotBounce {
+      0%,80%,100% { transform: scale(0.6); opacity:0.4; }
+      40% { transform: scale(1); opacity:1; }
+    }
+
+    /* ---- LOGIN OVERLAY ---- */
+    #login-overlay {
+      position: fixed; inset: 0; z-index: 9999;
+      display: flex; align-items: center; justify-content: center;
+      background: radial-gradient(ellipse at 30% 30%, #1a2e1a 0%, #0d1117 60%, #080d08 100%);
+    }
+    .login-card {
+      width: 100%; max-width: 420px; margin: 1.5rem;
+      background: var(--surface);
+      border-radius: 24px;
+      box-shadow: var(--shadow-xl);
+      padding: 2.5rem 2.5rem 2rem;
+      position: relative; overflow: hidden;
+      animation: slideUp .5s cubic-bezier(.22,.68,0,1.2) both;
+    }
+    .login-card::before {
+      content:''; position:absolute; top:0; left:0; right:0; height:3px;
+      background: linear-gradient(90deg, var(--sage), var(--gold), var(--sage-lt));
+    }
+    .login-mark {
+      width:60px; height:60px; border-radius:16px;
+      background: linear-gradient(135deg, var(--sage-dk), var(--sage));
+      display:flex; align-items:center; justify-content:center;
+      box-shadow: 0 8px 24px rgba(74,124,89,0.35);
+      margin-bottom: 1.25rem;
+    }
+
+    /* ---- HEADER ---- */
+    header {
+      position: sticky; top: 0; z-index: 40;
+      background: rgba(250,249,246,0.92);
+      backdrop-filter: blur(20px) saturate(160%);
+      border-bottom: 1px solid var(--border);
+    }
+    .header-inner {
+      max-width: 1280px; margin: 0 auto;
+      display: flex; align-items: center; gap: 1rem;
+      padding: 0 1.5rem; height: 68px;
+    }
+    .brand-logo {
+      display:flex; align-items:center; gap:.75rem; text-decoration:none; flex-shrink:0;
+    }
+    .brand-mark {
+      width:38px; height:38px; border-radius:10px;
+      background: linear-gradient(135deg, var(--sage-dk), var(--sage));
+      display:flex; align-items:center; justify-content:center;
+      flex-shrink:0;
+    }
+    .brand-name {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.35rem; font-weight: 700;
+      letter-spacing: -0.01em; color: var(--ink);
+      white-space: nowrap;
+    }
+    .brand-name span { color: var(--sage); }
+
+    /* ---- SEARCH ---- */
+    .search-wrap { flex:1; max-width: 360px; position:relative; }
+    .search-wrap svg.search-icon {
+      position:absolute; left:12px; top:50%; transform:translateY(-50%);
+      pointer-events:none; color: var(--silver);
+    }
+    #global-search {
+      width:100%; padding: .6rem .75rem .6rem 2.5rem;
+      border: 1.5px solid var(--pearl);
+      border-radius: 12px;
+      background: var(--frost);
+      font-family: 'DM Sans', sans-serif;
+      font-size: .875rem; color: var(--ink);
+      transition: border-color .2s, box-shadow .2s;
+      outline: none;
+    }
+    #global-search:focus {
+      border-color: var(--sage); background: #fff;
+      box-shadow: 0 0 0 3px rgba(74,124,89,0.12);
+    }
+    #search-results {
+      position:absolute; top:calc(100% + 8px); left:0; right:0;
+      background:#fff; border-radius:16px;
+      box-shadow: var(--shadow-lg);
+      border: 1px solid var(--border);
+      max-height: 280px; overflow-y:auto;
+      z-index:100;
+    }
+    #search-results.hidden { display:none; }
+    .search-item {
+      display:flex; align-items:center; gap:.75rem;
+      padding: .75rem 1rem; cursor:pointer;
+      transition: background .15s;
+      border-bottom: 1px solid var(--frost);
+    }
+    .search-item:last-child { border-bottom: none; }
+    .search-item:hover { background: var(--frost); }
+    .search-avatar {
+      width:38px; height:38px; border-radius:50%;
+      background: var(--pearl); overflow:hidden; flex-shrink:0;
+      display:flex; align-items:center; justify-content:center;
+    }
+    .search-avatar img { width:100%; height:100%; object-fit:cover; }
+
+    /* ---- DESKTOP NAV ---- */
+    .desk-nav { display:flex; align-items:center; gap:.25rem; margin-left:auto; }
+    .nav-btn {
+      display:flex; align-items:center; gap:.5rem;
+      padding: .5rem 1rem; border-radius:10px;
+      font-size:.875rem; font-weight:600; cursor:pointer; border:none;
+      background: transparent; color: var(--stone);
+      transition: background .2s, color .2s;
+    }
+    .nav-btn:hover { background: var(--frost); color: var(--ink); }
+    .nav-btn.active {
+      background: var(--ink); color: #fff;
+    }
+    .nav-btn svg { flex-shrink:0; }
+
+    /* ---- USER BADGE ---- */
+    .user-pill {
+      display:flex; align-items:center; gap:.5rem;
+      padding: .4rem .9rem; border-radius:99px;
+      font-size:.8rem; font-weight:700;
+      background: linear-gradient(135deg, var(--sage-dk), var(--sage));
+      color:#fff; flex-shrink:0;
+    }
+    .icon-btn {
+      width:36px; height:36px; border-radius:10px;
+      display:flex; align-items:center; justify-content:center;
+      background: transparent; border: 1.5px solid var(--pearl);
+      cursor:pointer; color: var(--stone);
+      transition: all .2s;
+    }
+    .icon-btn:hover { background:var(--frost); border-color:var(--pearl); color:var(--ink); }
+    .icon-btn.danger:hover { background:#fef2f2; border-color:#fecaca; color:#ef4444; }
+
+    /* ---- VIEWS ---- */
+    .view { display:none; flex:1; overflow:hidden; }
+    .view.active { display:flex; flex-direction:column; }
+    #view-dashboard { overflow-y:auto; }
+    #view-form { overflow-y:auto; }
+
+    /* ---- DASHBOARD ---- */
+    .dash-inner {
+      max-width:1200px; margin:0 auto;
+      padding: 2.5rem 1.5rem 6rem;
+    }
+
+    /* Hero */
+    .hero-card {
+      border-radius: 24px; overflow:hidden; position:relative;
+      background: linear-gradient(135deg, #0d1117 0%, #1a2a1a 40%, #2e3d1e 100%);
+      padding: 2.5rem 2rem;
+      display:flex; align-items:center; justify-content:space-between;
+      gap: 1.5rem; flex-wrap:wrap;
+      box-shadow: var(--shadow-lg);
+      margin-bottom: 2rem;
+    }
+    .hero-card::after {
+      content:''; position:absolute; inset:0;
+      background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.025'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+      pointer-events:none;
+    }
+    .hero-tag {
+      display:inline-flex; align-items:center; gap:.5rem;
+      padding: .35rem .9rem; border-radius:99px;
+      border: 1px solid rgba(201,168,76,0.4);
+      color: var(--gold-lt); font-size:.8rem; font-weight:600;
+      margin-bottom:.75rem;
+    }
+    .hero-title {
+      font-family:'Cormorant Garamond', serif;
+      font-size: clamp(1.8rem,4vw,2.8rem); font-weight:700;
+      color:#fff; line-height:1.15; margin-bottom:.75rem;
+    }
+    .hero-title span { color: var(--gold-lt); font-style:italic; }
+    .hero-sub { color: rgba(255,255,255,0.55); font-size:.95rem; max-width:420px; line-height:1.6; }
+    .hero-btn {
+      display:inline-flex; align-items:center; gap:.6rem;
+      padding: .9rem 1.8rem; border-radius:14px; cursor:pointer;
+      background: var(--gold); color: var(--ink);
+      font-weight:700; font-size:.95rem; border:none;
+      box-shadow: 0 4px 20px rgba(201,168,76,0.35);
+      transition: all .25s; white-space:nowrap;
+      flex-shrink:0;
+    }
+    .hero-btn:hover { background: var(--gold-lt); transform: translateY(-2px); box-shadow: 0 8px 28px rgba(201,168,76,0.45); }
+
+    /* Stats */
+    .stats-grid { display:grid; grid-template-columns: repeat(4,1fr); gap:1rem; margin-bottom:2rem; }
+    @media(max-width:768px) { .stats-grid { grid-template-columns: repeat(2,1fr); } }
+    .stat-card {
+      background: var(--surface); border-radius:20px;
+      padding: 1.5rem 1.25rem;
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow-sm);
+      transition: transform .3s, box-shadow .3s;
+    }
+    .stat-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-md); }
+    .stat-icon {
+      width:44px; height:44px; border-radius:12px;
+      display:flex; align-items:center; justify-content:center;
+      margin-bottom:.9rem;
+    }
+    .stat-val {
+      font-family:'Cormorant Garamond',serif;
+      font-size: 2.5rem; font-weight:700; line-height:1;
+      margin-bottom:.25rem;
+    }
+    .stat-label { font-size:.8rem; font-weight:600; color:var(--mist); text-transform:uppercase; letter-spacing:.05em; }
+
+    /* Feature cards */
+    .features-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:1rem; margin-bottom:2rem; }
+    @media(max-width:768px){ .features-grid { grid-template-columns:1fr; } }
+    .feat-card {
+      background: var(--surface); border-radius:20px;
+      padding:1.5rem; border: 1px solid var(--border);
+      box-shadow: var(--shadow-sm);
+      transition: box-shadow .3s, transform .3s;
+    }
+    .feat-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); }
+    .feat-icon {
+      width:48px; height:48px; border-radius:14px;
+      display:flex; align-items:center; justify-content:center;
+      margin-bottom:1rem;
+    }
+
+    /* ---- TREE VIEW ---- */
+    #view-tree {
+      position:relative; flex:1; overflow:hidden;
+      background: linear-gradient(160deg, #0d1117 0%, #111d11 40%, #0d1a0d 100%);
+    }
+    .tree-pattern {
+      position:absolute; inset:0; pointer-events:none;
+      background-image: radial-gradient(circle, rgba(255,255,255,0.025) 1px, transparent 1px);
+      background-size: 28px 28px;
+    }
+    #tree-container { position:relative; z-index:2; width:100%; height:100%; }
+
+    /* Tree controls */
+    .tree-controls {
+      position:absolute; top:1rem; left:1rem; z-index:20;
+      display:flex; flex-direction:column; gap:.5rem;
+    }
+    .tree-ctrl-btn {
+      width:40px; height:40px; border-radius:12px;
+      display:flex; align-items:center; justify-content:center;
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.15);
+      color:#fff; cursor:pointer; backdrop-filter:blur(8px);
+      transition: all .2s;
+    }
+    .tree-ctrl-btn:hover { background: rgba(255,255,255,0.18); }
+    .tree-ctrl-btn.active { background: rgba(201,168,76,0.35); border-color: rgba(201,168,76,0.5); }
+    .ctrl-divider { height:1px; background:rgba(255,255,255,0.12); margin:.25rem 0; }
+    .ctrl-label { font-size:9px; font-weight:700; color:rgba(255,255,255,0.55); text-align:center; letter-spacing:.06em; text-transform:uppercase; }
+
+    /* Legend panels */
+    .legend-panel {
+      position:absolute; z-index:20;
+      background: rgba(13,17,23,0.88);
+      backdrop-filter:blur(16px);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius:16px; overflow:hidden;
+    }
+    #info-legend { top:1rem; right:1rem; }
+    #gen-legend  { bottom:5rem; left:1rem; }
+    @media(min-width:768px){ #gen-legend { bottom:1rem; } }
+    .legend-trigger {
+      display:flex; align-items:center; gap:.5rem;
+      padding:.6rem .9rem; cursor:pointer;
+      color:rgba(255,255,255,0.85); font-size:.8rem; font-weight:600;
+      background:none; border:none; width:100%;
+    }
+    .legend-body { padding:.75rem; }
+    .legend-row { display:flex; align-items:center; gap:.6rem; margin-bottom:.5rem; font-size:.78rem; color:rgba(255,255,255,0.7); font-weight:500; }
+    .legend-row:last-child { margin-bottom:0; }
+    .leg-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+    .leg-sep { height:1px; background:rgba(255,255,255,0.1); margin:.5rem 0; }
+
+    /* ---- FORM VIEW ---- */
+    .form-inner { max-width:760px; margin:0 auto; padding:2.5rem 1.5rem 6rem; }
+    .form-header { text-align:center; margin-bottom:2rem; }
+    .form-card {
+      background: var(--surface); border-radius:24px;
+      padding: 2.5rem; box-shadow: var(--shadow-md);
+      border: 1px solid var(--border);
+    }
+    .step-header {
+      display:flex; align-items:center; gap:.75rem;
+      margin-bottom:1.5rem; padding-bottom:1rem;
+      border-bottom: 1px solid var(--pearl);
+    }
+    .step-num {
+      width:36px; height:36px; border-radius:10px; flex-shrink:0;
+      background: var(--ink); color:#fff;
+      display:flex; align-items:center; justify-content:center;
+      font-weight:800; font-size:.95rem;
+    }
+    .step-title { font-size:1.25rem; font-weight:700; color:var(--ink); }
+
+    /* Step progress */
+    .step-progress { display:flex; align-items:center; justify-content:center; gap:.5rem; margin-bottom:2rem; }
+    .sp-dot {
+      width:32px; height:32px; border-radius:50%;
+      display:flex; align-items:center; justify-content:center;
+      font-weight:800; font-size:.85rem;
+      border: 2px solid var(--pearl); background:#fff; color:var(--silver);
+      transition: all .3s;
+    }
+    .sp-dot.active {
+      border-color: var(--ink); background: var(--ink); color:#fff;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+    .sp-line { flex:1; max-width:60px; height:2px; background:var(--pearl); border-radius:99px; }
+
+    /* Inputs */
+    .field-group { display:grid; gap:1.25rem; margin-bottom:1.25rem; }
+    .field-group.cols-2 { grid-template-columns:1fr 1fr; }
+    @media(max-width:600px){ .field-group.cols-2 { grid-template-columns:1fr; } }
+    .field { display:flex; flex-direction:column; gap:.4rem; }
+    .field label {
+      font-size:.82rem; font-weight:700; color:var(--stone);
+      display:flex; align-items:center; gap:.4rem;
+    }
+    .field label svg { color:var(--sage); }
+    .input-field {
+      padding:.75rem 1rem; border-radius:12px;
+      border: 1.5px solid var(--pearl); background:var(--frost);
+      font-family:'DM Sans',sans-serif; font-size:.9rem; color:var(--ink);
+      transition: border-color .2s, box-shadow .2s; outline:none;
+      width:100%;
+    }
+    .input-field:focus {
+      border-color:var(--sage); background:#fff;
+      box-shadow: 0 0 0 3px rgba(74,124,89,0.1);
+    }
+    select.input-field { appearance:none; cursor:pointer; }
+
+    /* Photo upload */
+    .photo-zone {
+      display:flex; flex-direction:column; align-items:center;
+      margin-bottom:1.5rem;
+    }
+    .photo-ring {
+      width:100px; height:100px; border-radius:50%;
+      border: 3px dashed var(--pearl);
+      background:var(--frost); overflow:hidden; position:relative;
+      cursor:pointer; transition: border-color .2s;
+    }
+    .photo-ring:hover { border-color:var(--sage); }
+    .photo-ring img { width:100%; height:100%; object-fit:cover; }
+    .photo-overlay {
+      position:absolute; inset:0; border-radius:50%;
+      background:rgba(0,0,0,0.35);
+      display:flex; flex-direction:column; align-items:center; justify-content:center;
+      opacity:0; transition:opacity .2s; color:#fff;
+    }
+    .photo-ring:hover .photo-overlay { opacity:1; }
+    .photo-placeholder {
+      position:absolute; inset:0; display:flex; flex-direction:column;
+      align-items:center; justify-content:center; color:var(--silver);
+    }
+
+    /* Buttons */
+    .btn-primary {
+      display:inline-flex; align-items:center; gap:.5rem;
+      padding:.75rem 1.5rem; border-radius:12px;
+      background: var(--ink); color:#fff;
+      font-family:'DM Sans',sans-serif; font-weight:700; font-size:.9rem;
+      border:none; cursor:pointer;
+      transition: all .2s;
+    }
+    .btn-primary:hover { background: var(--ink-2); transform:translateY(-1px); box-shadow: var(--shadow-md); }
+    .btn-primary.green { background:var(--sage-dk); }
+    .btn-primary.green:hover { background:var(--sage); }
+    .btn-secondary {
+      display:inline-flex; align-items:center; gap:.5rem;
+      padding:.75rem 1.5rem; border-radius:12px;
+      background:#fff; color:var(--stone);
+      font-family:'DM Sans',sans-serif; font-weight:700; font-size:.9rem;
+      border: 1.5px solid var(--pearl); cursor:pointer;
+      transition: all .2s;
+    }
+    .btn-secondary:hover { background:var(--frost); border-color:var(--pearl); }
+    .btn-ghost {
+      display:inline-flex; align-items:center; gap:.5rem;
+      padding:.65rem 1.1rem; border-radius:10px;
+      background:transparent; color:var(--stone);
+      font-family:'DM Sans',sans-serif; font-weight:600; font-size:.85rem;
+      border: 1.5px solid var(--pearl); cursor:pointer; width:100%;
+      justify-content:center;
+      transition: all .2s;
+    }
+    .btn-ghost:hover { background:var(--frost); color:var(--sage-dk); border-color:var(--sage); }
+    .btn-row { display:flex; justify-content:space-between; align-items:center; margin-top:1.5rem; gap:.75rem; }
+
+    /* Anak */
+    .anak-row {
+      display:flex; align-items:center; gap:.75rem;
+      animation: fadeSlideIn .3s ease;
+    }
+    .anak-row .input-field { flex:1; }
+    .remove-btn {
+      width:38px; height:38px; border-radius:10px; flex-shrink:0;
+      display:flex; align-items:center; justify-content:center;
+      background:#fef2f2; color:#ef4444; border:none; cursor:pointer;
+      border: 1.5px solid #fecaca;
+      transition: all .15s;
+    }
+    .remove-btn:hover { background:#fee2e2; }
+
+    /* Info box */
+    .info-box {
+      display:flex; gap:.75rem; padding:1rem 1.1rem;
+      border-radius:14px; background:#eff6ff; border:1px solid #bfdbfe;
+      margin-bottom:1.25rem;
+    }
+    .info-box p { font-size:.85rem; color:#1e40af; line-height:1.55; }
+
+    /* Role toggle */
+    .role-toggle { display:flex; gap:.25rem; background:var(--frost); padding:.3rem; border-radius:14px; margin-bottom:1.25rem; }
+    .role-btn {
+      flex:1; padding:.65rem .5rem; border-radius:11px; font-weight:700; font-size:.875rem;
+      border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:.45rem;
+      transition: all .2s; color:var(--stone); background:transparent;
+    }
+    .role-btn.active { background:#fff; color:var(--ink); box-shadow: var(--shadow-sm); }
+
+    /* ---- MOBILE NAV ---- */
+    #mobile-nav {
+      position:fixed; bottom:0; left:0; right:0; z-index:40;
+      background: rgba(250,249,246,0.95);
+      backdrop-filter: blur(20px);
+      border-top: 1px solid var(--border);
+      padding:.5rem .75rem;
+    }
+    #mobile-nav-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:.25rem; }
+    .mob-nav-btn {
+      display:flex; flex-direction:column; align-items:center; justify-content:center;
+      gap:.2rem; padding:.6rem .25rem; border-radius:12px;
+      background:none; border:none; cursor:pointer;
+      color:var(--mist); font-size:.7rem; font-weight:700;
+      transition: all .2s;
+    }
+    .mob-nav-btn.active { color:var(--sage-dk); background:rgba(74,124,89,0.08); }
+    .mob-nav-btn svg { width:20px; height:20px; }
+
+    /* ---- ANIMATIONS ---- */
+    @keyframes slideUp {
+      from { opacity:0; transform:translateY(20px); }
+      to   { opacity:1; transform:translateY(0); }
+    }
+    @keyframes fadeSlideIn {
+      from { opacity:0; transform:translateX(-8px); }
+      to   { opacity:1; transform:translateX(0); }
+    }
+    @keyframes fadeIn {
+      from { opacity:0; }
+      to   { opacity:1; }
+    }
+    .anim-up { animation: slideUp .45s cubic-bezier(.22,.68,0,1.1) both; }
+    .anim-fade { animation: fadeIn .4s ease both; }
+    .delay-1 { animation-delay:.1s; }
+    .delay-2 { animation-delay:.2s; }
+    .delay-3 { animation-delay:.3s; }
+    .delay-4 { animation-delay:.4s; }
+
+    /* ---- HIDE WHEN NOT NEEDED ---- */
+    .hidden { display:none !important; }
+    .admin-only { }
+
+    /* ---- SWEETALERT CUSTOM ---- */
+    .swal2-popup { border-radius:20px !important; font-family:'DM Sans',sans-serif !important; }
+    .swal2-title { font-family:'Cormorant Garamond',serif !important; font-size:1.6rem !important; }
+    .swal2-html-container { font-size:.9rem !important; }
+  </style>
+</head>
+<body>
+<div id="app">
+
+<!-- ===========================
+     LOADING OVERLAY
+=========================== -->
+<div id="loading-overlay">
+  <svg class="load-tree-icon" viewBox="0 0 72 72" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="36" cy="36" r="35" stroke="rgba(201,168,76,0.25)" stroke-width="2"/>
+    <path d="M36 56V36" stroke="#c9a84c" stroke-width="2.5" stroke-linecap="round"/>
+    <path d="M36 36L26 26" stroke="#6aab7d" stroke-width="2.5" stroke-linecap="round"/>
+    <path d="M36 36L46 26" stroke="#6aab7d" stroke-width="2.5" stroke-linecap="round"/>
+    <path d="M36 46L28 38" stroke="#4a7c59" stroke-width="2" stroke-linecap="round"/>
+    <path d="M36 46L44 38" stroke="#4a7c59" stroke-width="2" stroke-linecap="round"/>
+    <circle cx="36" cy="20" r="5" fill="#c9a84c"/>
+    <circle cx="23" cy="23" r="4" fill="#6aab7d"/>
+    <circle cx="49" cy="23" r="4" fill="#6aab7d"/>
+    <circle cx="36" cy="60" r="4" fill="#4a7c59"/>
+  </svg>
+  <p style="margin-top:1.5rem;color:rgba(255,255,255,0.9);font-family:'Cormorant Garamond',serif;font-size:1.4rem;font-weight:600;letter-spacing:.02em;">Heritage</p>
+  <p style="color:rgba(255,255,255,0.4);font-size:.85rem;margin-top:.3rem;">Loading your family tree…</p>
+  <div class="load-dots" style="margin-top:1.25rem;">
+    <span></span><span></span><span></span>
+  </div>
+</div>
+
+<!-- ===========================
+     LOGIN OVERLAY
+=========================== -->
+<div id="login-overlay">
+  <div class="login-card">
+    <div class="login-mark">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 2L8 6H4l2 4-4 2 4 2-2 4h4l4 4 4-4h4l-2-4 4-2-4-2 2-4h-4z"/>
+      </svg>
+    </div>
+    <h1 class="font-display" style="font-size:1.9rem;font-weight:700;margin-bottom:.25rem;">Heritage</h1>
+    <p style="font-size:.875rem;color:var(--mist);margin-bottom:1.5rem;">Sign in to access your family archive</p>
+
+    <!-- Role Toggle -->
+    <div class="role-toggle">
+      <button type="button" class="role-btn active" id="role-btn-admin" onclick="setLoginRole('admin')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        Administrator
+      </button>
+      <button type="button" class="role-btn" id="role-btn-user" onclick="setLoginRole('user')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="7" r="4"/><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/></svg>
+        Member
+      </button>
+    </div>
+
+    <!-- Generation (user only) -->
+    <div id="login-generasi-wrap" class="hidden" style="margin-bottom:1rem;">
+      <div style="position:relative;">
+        <svg style="position:absolute;left:12px;top:50%;transform:translateY(-50%);pointer-events:none;" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--silver)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+        <select id="login-generasi" class="input-field" style="padding-left:2.5rem;">
+          <option value="">— Select your generation —</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Password -->
+    <div style="position:relative;margin-bottom:.75rem;">
+      <svg style="position:absolute;left:12px;top:50%;transform:translateY(-50%);pointer-events:none;" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--silver)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+      <input type="password" id="login-password" placeholder="Password"
+        class="input-field" style="padding-left:2.5rem;padding-right:2.75rem;"
+        onkeydown="if(event.key==='Enter') doLogin()" />
+      <button type="button" onclick="toggleLoginPassword()" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--silver);display:flex;">
+        <svg id="login-eye-icon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+      </button>
+    </div>
+
+    <p id="login-error" class="hidden" style="font-size:.82rem;color:#ef4444;font-weight:600;text-align:center;background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:.5rem .75rem;margin-bottom:.75rem;">Incorrect password. Please try again.</p>
+
+    <button onclick="doLogin()" id="login-btn" class="btn-primary green" style="width:100%;justify-content:center;padding:.85rem;">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+      Sign In
+    </button>
+  </div>
+</div>
+
+<!-- ===========================
+     HEADER
+=========================== -->
+<header>
+  <div class="header-inner">
+    <!-- Brand -->
+    <div class="brand-logo">
+      <div class="brand-mark">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 22V12"/><path d="M12 12L7 7"/><path d="M12 12L17 7"/>
+          <path d="M12 17L9 14"/><path d="M12 17L15 14"/>
+          <circle cx="12" cy="4" r="2" fill="#fff" stroke="none"/>
+        </svg>
+      </div>
+      <span class="brand-name">Heritage<span>.</span></span>
+    </div>
+
+    <!-- Search -->
+    <div class="search-wrap" style="display:none;" id="search-wrap">
+      <svg class="search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="text" id="global-search" placeholder="Search family members…" autocomplete="off">
+      <div id="search-results" class="hidden"></div>
+    </div>
+
+    <!-- Desktop Nav -->
+    <nav class="desk-nav" id="desk-nav" style="display:none;">
+      <button onclick="switchTab('dashboard')" id="nav-dashboard" class="nav-btn active">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        Dashboard
+      </button>
+      <button onclick="switchTab('tree')" id="nav-tree" class="nav-btn">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22V12"/><path d="M12 12L7 7"/><path d="M12 12L17 7"/><path d="M12 17L9 14"/><path d="M12 17L15 14"/></svg>
+        Family Tree
+      </button>
+      <button onclick="switchTab('form'); resetFormState();" id="nav-form" class="nav-btn admin-only">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Add Member
+      </button>
+    </nav>
+
+    <!-- Right actions -->
+    <div style="display:none;align-items:center;gap:.5rem;margin-left:auto;" id="header-actions">
+      <div class="user-pill" id="role-badge">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        <span id="role-badge-text">ADMIN</span>
+      </div>
+      <button class="icon-btn admin-only" onclick="showChangePassword()" title="Change Password">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+      </button>
+      <button class="icon-btn danger" onclick="doLogout()" title="Sign Out">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      </button>
+    </div>
+  </div>
+</header>
+
+<!-- ===========================
+     MAIN VIEWS
+=========================== -->
+<main style="flex:1;overflow:hidden;display:flex;flex-direction:column;">
+
+  <!-- ---- DASHBOARD ---- -->
+  <div id="view-dashboard" class="view active" style="overflow-y:auto;">
+    <div class="dash-inner">
+
+      <!-- Hero -->
+      <div class="hero-card anim-up">
+        <div>
+          <div class="hero-tag">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L8 6H4l2 4-4 2 4 2-2 4h4l4 4 4-4h4l-2-4 4-2-4-2 2-4h-4z"/></svg>
+            Digital Heritage Archive
+          </div>
+          <h2 class="hero-title">Your Family's<br><span>Story Visualised</span></h2>
+          <p class="hero-sub">Explore generations of ancestry in a beautiful interactive diagram, preserved for the future.</p>
+        </div>
+        <button onclick="switchTab('tree')" class="hero-btn">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22V12"/><path d="M12 12L7 7"/><path d="M12 12L17 7"/></svg>
+          Open Family Tree
+        </button>
+      </div>
+
+      <!-- Stats -->
+      <div class="stats-grid">
+        <div class="stat-card anim-up delay-1">
+          <div class="stat-icon" style="background:#fef3c7;">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22V12"/><path d="M12 12L7 7"/><path d="M12 12L17 7"/><path d="M12 17L9 14"/><path d="M12 17L15 14"/></svg>
+          </div>
+          <div class="stat-val" style="color:#92400e;" id="stat-gen">—</div>
+          <div class="stat-label">Generations</div>
+        </div>
+        <div class="stat-card anim-up delay-2">
+          <div class="stat-icon" style="background:#dcfce7;">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+          </div>
+          <div class="stat-val" style="color:#166534;" id="stat-parents">—</div>
+          <div class="stat-label">Parents</div>
+        </div>
+        <div class="stat-card anim-up delay-3">
+          <div class="stat-icon" style="background:#ffedd5;">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ea580c" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          </div>
+          <div class="stat-val" style="color:#9a3412;" id="stat-members">—</div>
+          <div class="stat-label">Total Members</div>
+        </div>
+        <div class="stat-card anim-up delay-4">
+          <div class="stat-icon" style="background:#fdf2f8;">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#db2777" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+          </div>
+          <div class="stat-val" style="color:#9d174d;" id="stat-children">—</div>
+          <div class="stat-label">Descendants</div>
+        </div>
+      </div>
+
+      <!-- Features -->
+      <div class="features-grid">
+        <div class="feat-card anim-up delay-1">
+          <div class="feat-icon" style="background:#f0fdf4;">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--sage)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          </div>
+          <h4 style="font-weight:700;margin-bottom:.4rem;color:var(--ink);">Secure & Private</h4>
+          <p style="font-size:.875rem;color:var(--mist);line-height:1.6;">Your data lives directly in your own Google Spreadsheet — fully under your control.</p>
+        </div>
+        <div class="feat-card anim-up delay-2">
+          <div class="feat-icon" style="background:#fefce8;">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+          </div>
+          <h4 style="font-weight:700;margin-bottom:.4rem;color:var(--ink);">Real-time Sync</h4>
+          <p style="font-size:.875rem;color:var(--mist);line-height:1.6;">Changes sync instantly and remain accessible from any device, anywhere in the world.</p>
+        </div>
+        <div class="feat-card anim-up delay-3">
+          <div class="feat-icon" style="background:#fff7ed;">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ea580c" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+          </div>
+          <h4 style="font-weight:700;margin-bottom:.4rem;color:var(--ink);">Fully Responsive</h4>
+          <p style="font-size:.875rem;color:var(--mist);line-height:1.6;">Seamless experience across desktop, tablet, and smartphone with adaptive layouts.</p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ---- TREE VIEW ---- -->
+  <div id="view-tree" class="view" style="flex:1;position:relative;overflow:hidden;background:linear-gradient(160deg,#0d1117 0%,#111d11 40%,#0d1a0d 100%);">
+    <div class="tree-pattern"></div>
+
+    <!-- Zoom + Controls -->
+    <div class="tree-controls">
+      <button class="tree-ctrl-btn" onclick="svg.transition().duration(400).call(zoom.scaleBy,1.3)" title="Zoom in">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      </button>
+      <button class="tree-ctrl-btn" onclick="svg.transition().duration(400).call(zoom.scaleBy,0.77)" title="Zoom out">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      </button>
+      <button class="tree-ctrl-btn" onclick="resetZoom()" title="Fit to screen">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 3H5a2 2 0 00-2 2v3"/><path d="M21 8V5a2 2 0 00-2-2h-3"/><path d="M3 16v3a2 2 0 002 2h3"/><path d="M16 21h3a2 2 0 002-2v-3"/></svg>
+      </button>
+      <div class="ctrl-divider"></div>
+      <button class="tree-ctrl-btn" id="btn-expand-all" onclick="toggleExpandAll()" title="Expand all">
+        <svg id="expand-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+      </button>
+      <div class="ctrl-label" id="label-expand-all">Expand</div>
+    </div>
+
+    <!-- Info Legend -->
+    <div class="legend-panel" id="info-legend">
+      <button class="legend-trigger" onclick="toggleInfoLegend()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        Legend
+        <svg id="info-legend-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.5)" stroke-width="2.5" stroke-linecap="round" style="margin-left:auto;transition:transform .3s;"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div id="info-legend-panel" class="legend-body hidden">
+        <div class="legend-row"><div class="leg-dot" style="background:#10b981;"></div> Living</div>
+        <div class="legend-row"><div class="leg-dot" style="background:#64748b;"></div> Deceased</div>
+        <div class="leg-sep"></div>
+        <div class="legend-row">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 10-16 0"/></svg>
+          Male
+        </div>
+        <div class="legend-row">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#f472b6" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 10-16 0"/></svg>
+          Female
+        </div>
+        <div class="leg-sep"></div>
+        <div class="legend-row" style="color:rgba(255,255,255,0.45);font-size:.72rem;">Click node = details</div>
+        <div class="legend-row" style="color:rgba(255,255,255,0.45);font-size:.72rem;">+/− button = expand</div>
+      </div>
+    </div>
+
+    <!-- Gen Color Legend -->
+    <div class="legend-panel hidden" id="gen-legend" style="bottom:5rem;left:1rem;">
+      <button class="legend-trigger" onclick="toggleGenLegend()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="13.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="10.5" r="2.5"/><circle cx="8.5" cy="7.5" r="2.5"/><circle cx="6.5" cy="12.5" r="2.5"/><circle cx="15.5" cy="16.5" r="2.5"/><circle cx="10" cy="16" r="2.5"/></svg>
+        Generation Colours
+        <svg id="gen-legend-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.5)" stroke-width="2.5" stroke-linecap="round" style="margin-left:auto;transition:transform .3s;transform:rotate(180deg)"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div id="gen-legend-panel" class="legend-body">
+        <div id="gen-legend-items" style="display:flex;flex-wrap:wrap;gap:.4rem;max-width:220px;"></div>
+      </div>
+    </div>
+
+    <div id="tree-container" style="position:relative;z-index:2;width:100%;height:100%;"></div>
+  </div>
+
+  <!-- ---- FORM VIEW ---- -->
+  <div id="view-form" class="view" style="overflow-y:auto;">
+    <div class="form-inner">
+
+      <div class="form-header anim-up">
+        <p style="font-size:.8rem;font-weight:700;color:var(--sage);text-transform:uppercase;letter-spacing:.1em;margin-bottom:.5rem;">Member Management</p>
+        <h2 class="font-display" style="font-size:2.2rem;font-weight:700;" id="form-heading">Add New <span style="color:var(--sage);">Family Member</span></h2>
+        <p style="color:var(--mist);margin-top:.4rem;font-size:.9rem;">Complete all steps to record the member's information.</p>
+      </div>
+
+      <!-- Step Progress -->
+      <div class="step-progress">
+        <div class="sp-dot active" id="sp1">1</div>
+        <div class="sp-line"></div>
+        <div class="sp-dot" id="sp2">2</div>
+        <div class="sp-line"></div>
+        <div class="sp-dot" id="sp3">3</div>
+      </div>
+
+      <div class="form-card anim-up delay-1">
+        <form id="familyForm">
+          <input type="hidden" id="edit-id" value="">
+
+          <!-- STEP 1 -->
+          <div id="step-1">
+            <div class="step-header">
+              <div class="step-num">1</div>
+              <span class="step-title">Basic Information</span>
+            </div>
+
+            <!-- Photo -->
+            <div class="photo-zone">
+              <div class="photo-ring" onclick="document.getElementById('input-foto').click()">
+                <img id="preview-foto" src="" class="hidden" alt="Photo preview">
+                <div class="photo-placeholder" id="placeholder-foto">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                  <span style="font-size:.7rem;font-weight:700;margin-top:.25rem;">PHOTO</span>
+                </div>
+                <div class="photo-overlay">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                  <span style="font-size:.65rem;margin-top:.2rem;">Change</span>
+                </div>
+              </div>
+              <p id="file-name" style="font-size:.75rem;color:var(--silver);margin-top:.5rem;font-weight:500;">Click circle to upload photo</p>
+              <input type="file" id="input-foto" accept="image/*" class="hidden" onchange="handleFileSelect(this)">
+            </div>
+
+            <div class="field-group cols-2">
+              <div class="field">
+                <label>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="7" r="4"/><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/></svg>
+                  Full Name
+                </label>
+                <input type="text" id="nama" required placeholder="e.g. John Smith" class="input-field">
+              </div>
+              <div class="field">
+                <label>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+                  Gender
+                </label>
+                <select id="gender" required class="input-field">
+                  <option value="">Select Gender</option>
+                  <option value="L">Male</option>
+                  <option value="P">Female</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="field-group cols-2">
+              <div class="field">
+                <label>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+                  Generation
+                </label>
+                <select id="generasi" required onchange="loadParentsList()" class="input-field">
+                  <option value="">Select Generation</option>
+                </select>
+              </div>
+              <div class="field">
+                <label>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+                  Parent
+                </label>
+                <select id="orangTua" required class="input-field">
+                  <option value="">Select generation first</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="btn-row" style="justify-content:flex-end;">
+              <button type="button" onclick="nextStep(2)" class="btn-primary">
+                Next: Status & Partner
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- STEP 2 -->
+          <div id="step-2" class="hidden">
+            <div class="step-header">
+              <div class="step-num">2</div>
+              <span class="step-title">Status & Contact</span>
+            </div>
+
+            <div class="field-group cols-2">
+              <div class="field">
+                <label>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                  Life Status
+                </label>
+                <select id="status" required class="input-field" onchange="toggleTglMeninggal()">
+                  <option value="">Select Status</option>
+                  <option value="Hidup">Living</option>
+                  <option value="Almarhum">Deceased</option>
+                </select>
+              </div>
+              <div class="field">
+                <label>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
+                  Spouse (Optional)
+                </label>
+                <input type="text" id="pasangan" placeholder="Leave blank if not married" class="input-field">
+              </div>
+            </div>
+
+            <div id="tgl-meninggal-wrap" class="hidden field-group" style="grid-template-columns:1fr;">
+              <div class="field">
+                <label>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                  Date of Passing (Optional)
+                </label>
+                <input type="date" id="tglMeninggal" class="input-field">
+              </div>
+            </div>
+
+            <div class="field-group cols-2">
+              <div class="field">
+                <label>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                  Address (Optional)
+                </label>
+                <input type="text" id="alamat" placeholder="e.g. 123 Oak Street, London" class="input-field">
+              </div>
+              <div class="field">
+                <label>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.82 19.79 19.79 0 01.02 1.18 2 2 0 012 0h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L6.18 7.55a16 16 0 006.27 6.27l1.41-1.41a2 2 0 012.11-.45c.9.36 1.86.6 2.81.7A2 2 0 0122 14.87v2.05z"/></svg>
+                  Phone (Optional)
+                </label>
+                <input type="text" id="noHp" placeholder="e.g. +44 7700 900123" class="input-field">
+              </div>
+            </div>
+
+            <div class="btn-row">
+              <button type="button" onclick="prevStep(1)" class="btn-secondary">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+                Back
+              </button>
+              <button type="button" onclick="nextStep(3)" class="btn-primary">
+                Next: Children
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- STEP 3 -->
+          <div id="step-3" class="hidden">
+            <div class="step-header">
+              <div class="step-num">3</div>
+              <span class="step-title">Children (Optional)</span>
+            </div>
+
+            <div class="info-box">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2" stroke-linecap="round" flex-shrink="0" style="flex-shrink:0;margin-top:1px;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              <p>Add the names of any children. Each child will be automatically created as a member in the next generation. You can expand their profiles later.</p>
+            </div>
+
+            <div id="anak-container" style="display:flex;flex-direction:column;gap:.75rem;margin-bottom:1rem;"></div>
+
+            <button type="button" onclick="addAnakField()" class="btn-ghost">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Add a Child
+            </button>
+
+            <div class="btn-row" style="border-top:1px solid var(--pearl);padding-top:1.25rem;margin-top:1.25rem;">
+              <button type="button" onclick="prevStep(2)" class="btn-secondary">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+                Back
+              </button>
+              <button type="submit" class="btn-primary green" style="padding:.8rem 1.75rem;font-size:.95rem;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+                Save Member
+              </button>
+            </div>
+          </div>
+
+        </form>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<!-- ===========================
+     MOBILE NAV
+=========================== -->
+<nav id="mobile-nav" class="hidden">
+  <div id="mobile-nav-grid">
+    <button onclick="switchTab('dashboard')" id="mobile-nav-dashboard" class="mob-nav-btn active">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+      Dashboard
+    </button>
+    <button onclick="switchTab('tree')" id="mobile-nav-tree" class="mob-nav-btn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 22V12"/><path d="M12 12L7 7"/><path d="M12 12L17 7"/><path d="M12 17L9 14"/><path d="M12 17L15 14"/></svg>
+      Tree
+    </button>
+    <button onclick="switchTab('form'); resetFormState();" id="mobile-nav-form" class="mob-nav-btn admin-only">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      Add
+    </button>
+  </div>
+</nav>
+
+</div><!-- #app -->
+
+<script>
+// ============================================================
+// HELPER: Google Drive URL converter
+// ============================================================
+function getDisplayUrl(url) {
+  if (!url) return "";
+  if (url.includes("drive.google.com/uc?export=view")) {
+    const m = url.match(/id=([^&]+)/);
+    if (m && m[1]) return "https://drive.google.com/thumbnail?sz=w1000&id=" + m[1];
+  }
+  return url;
+}
+
+// ============================================================
+// GLOBAL STATE
+// ============================================================
+let currentStep = 1;
+let svg, g, zoom, root;
+let treeUpdate = null;
+let allExpanded = false;
+let anakCount = 0;
+let newPhotoData = "";
+let oldPhotoUrl = "";
+let searchIndex = [];
+let sessionToken = null;
+let sessionRole = null;
+let sessionGenerasi = '';
+let loginRole = 'admin';
+
+// ============================================================
+// BOOT
+// ============================================================
+window.onload = function() { initSession(); };
+
+function bootApp() {
+  // Show UI elements
+  document.getElementById('search-wrap').style.display = '';
+  document.getElementById('desk-nav').style.display = '';
+  document.getElementById('header-actions').style.display = 'flex';
+  document.getElementById('mobile-nav').classList.remove('hidden');
+
+  loadDashboardStats();
+  loadGenerasiDropdown();
+  initializeTree();
+  initSearch();
+
+  setTimeout(() => {
+    const o = document.getElementById('loading-overlay');
+    if (o) { o.style.opacity = '0'; setTimeout(() => o.style.display = 'none', 600); }
+  }, 1200);
+}
+
+// ============================================================
+// TAB SWITCHING
+// ============================================================
+function switchTab(tab) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.mob-nav-btn').forEach(b => b.classList.remove('active'));
+
+  document.getElementById('view-' + tab).classList.add('active');
+  const nb = document.getElementById('nav-' + tab);
+  if (nb) nb.classList.add('active');
+  const mb = document.getElementById('mobile-nav-' + tab);
+  if (mb) mb.classList.add('active');
+
+  if (tab === 'tree' && root) setTimeout(() => resetZoom(), 100);
+}
+
+// ============================================================
+// ROLE UI
+// ============================================================
+function applyRoleUI() {
+  const isAdmin = sessionRole === 'admin';
+  document.querySelectorAll('.admin-only').forEach(el => {
+    el.style.display = isAdmin ? '' : 'none';
+  });
+  const mobileGrid = document.getElementById('mobile-nav-grid');
+  if (mobileGrid) {
+    mobileGrid.style.gridTemplateColumns = isAdmin ? 'repeat(3,1fr)' : 'repeat(2,1fr)';
+  }
+  const badgeText = document.getElementById('role-badge-text');
+  if (isAdmin) {
+    badgeText.textContent = 'ADMIN';
+  } else {
+    badgeText.textContent = sessionGenerasi || 'MEMBER';
+  }
+}
+
+// ============================================================
+// DASHBOARD STATS
+// ============================================================
+function loadDashboardStats() {
+  google.script.run
+    .withSuccessHandler(s => {
+      document.getElementById('stat-gen').textContent = s.generation;
+      document.getElementById('stat-parents').textContent = s.parents;
+      document.getElementById('stat-members').textContent = s.members;
+      document.getElementById('stat-children').textContent = s.children;
+    })
+    .getDashboardStats();
+}
+
+// ============================================================
+// SEARCH
+// ============================================================
+function initSearch() {
+  google.script.run.withSuccessHandler(d => { searchIndex = d; }).getSearchIndex();
+  const input = document.getElementById('global-search');
+  const results = document.getElementById('search-results');
+  if (!input || !results) return;
+  input.addEventListener('input', e => {
+    const q = e.target.value.toLowerCase();
+    if (q.length < 2) { results.classList.add('hidden'); return; }
+    const matches = searchIndex.filter(i => i.name.toLowerCase().includes(q)).slice(0,5);
+    renderSearchResults(matches, results);
+  });
+  document.addEventListener('click', e => {
+    if (!input.contains(e.target) && !results.contains(e.target)) results.classList.add('hidden');
+  });
+}
+
+function renderSearchResults(matches, container) {
+  if (matches.length === 0) {
+    container.innerHTML = '<div style="padding:1rem;text-align:center;color:var(--mist);font-size:.875rem;">No results found</div>';
+  } else {
+    container.innerHTML = matches.map(m => `
+      <div onclick="focusToMember('${m.id}')" class="search-item">
+        <div class="search-avatar">
+          ${m.foto ? `<img src="${getDisplayUrl(m.foto)}" alt="">` : `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--silver)" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="7" r="4"/><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/></svg>`}
+        </div>
+        <div>
+          <p style="font-size:.875rem;font-weight:700;color:var(--ink);">${m.name}</p>
+          <p style="font-size:.78rem;color:var(--sage);font-weight:500;">${m.gen}</p>
+        </div>
+      </div>
+    `).join('');
+  }
+  container.classList.remove('hidden');
+}
+
+function findNodeDeep(node, id) {
+  if (node.data.id === id) return node;
+  const kids = (node.children||[]).concat(node._children||[]);
+  for (const child of kids) { const f = findNodeDeep(child, id); if (f) return f; }
+  return null;
+}
+
+function focusToMember(id) {
+  const si = document.getElementById('global-search');
+  const sr = document.getElementById('search-results');
+  if (si) si.value = '';
+  if (sr) sr.classList.add('hidden');
+  switchTab('tree');
+  if (!root || !treeUpdate) return;
+  let target = findNodeDeep(root, id);
+  if (target) {
+    let a = target.parent;
+    while (a) { if (a._children) { a.children = a._children; a._children = null; } a = a.parent; }
+    treeUpdate(root);
+    setTimeout(() => {
+      const sel = d3.selectAll('g.node').filter(d => d.data.id === id);
+      if (!sel.empty()) {
+        const d = sel.datum();
+        const t = d3.zoomIdentity.translate(window.innerWidth/2, window.innerHeight/2).scale(1.5).translate(-d.y,-d.x);
+        svg.transition().duration(900).call(zoom.transform, t);
+        sel.select('.card-face').transition().duration(300).attr('stroke','#c9a84c').attr('stroke-width',5)
+          .transition().duration(1200).attr('stroke', getGenColor(d.data.generation).border).attr('stroke-width',2);
+      }
+    }, 550);
+  }
+}
+
+// ============================================================
+// PHOTO HANDLING
+// ============================================================
+function handleFileSelect(input) {
+  const file = input.files[0];
+  if (!file) return;
+  if (file.size > 2*1024*1024) { Swal.fire('File too large','Maximum photo size is 2 MB.','warning'); input.value=''; return; }
+  const reader = new FileReader();
+  reader.onload = e => {
+    newPhotoData = e.target.result;
+    const img = document.getElementById('preview-foto');
+    img.src = newPhotoData; img.classList.remove('hidden');
+    document.getElementById('placeholder-foto').style.display = 'none';
+    document.getElementById('file-name').textContent = file.name;
+  };
+  reader.readAsDataURL(file);
+}
+
+// ============================================================
+// FORM HELPERS
+// ============================================================
+function loadGenerasiDropdown() {
+  google.script.run.withSuccessHandler(list => {
+    const sel = document.getElementById('generasi');
+    sel.innerHTML = '<option value="">Select Generation</option>';
+    list.forEach(g => { const o = document.createElement('option'); o.value=g; o.textContent=g; sel.appendChild(o); });
+  }).getGenerasiList();
+}
+
+function loadParentsList() {
+  const gen = document.getElementById('generasi').value;
+  if (!gen) return;
+  const sel = document.getElementById('orangTua');
+  sel.disabled = true; sel.innerHTML = '<option>Loading…</option>';
+  google.script.run.withSuccessHandler(parents => {
+    sel.innerHTML = '<option value="">Select Parent</option>';
+    parents.forEach(p => { const o = document.createElement('option'); o.value=p.id; o.textContent=p.name; sel.appendChild(o); });
+    sel.disabled = false;
+  }).getParentsList(gen);
+}
+
+function loadParentsListWithSelection(gen, selectedId) {
+  const sel = document.getElementById('orangTua');
+  sel.disabled = true;
+  google.script.run.withSuccessHandler(parents => {
+    sel.innerHTML = '<option value="">Select Parent</option>';
+    parents.forEach(p => { const o = document.createElement('option'); o.value=p.id; o.textContent=p.name; if(p.id===selectedId) o.selected=true; sel.appendChild(o); });
+    sel.disabled = false;
+  }).getParentsList(gen);
+}
+
+function nextStep(step) {
+  for (let i=1;i<=3;i++) { const el = document.getElementById('step-'+i); if(el) el.classList.add('hidden'); }
+  document.getElementById('step-'+step).classList.remove('hidden');
+  for (let i=1;i<=3;i++) { const d = document.getElementById('sp'+i); if(d) { d.classList.toggle('active', i<=step); } }
+  currentStep = step;
+  document.getElementById('view-form').scrollTop = 0;
+}
+function prevStep(step) { nextStep(step); }
+
+function addAnakField() {
+  anakCount++;
+  const container = document.getElementById('anak-container');
+  const div = document.createElement('div');
+  div.className = 'anak-row';
+  div.innerHTML = `
+    <input type="text" class="input-field" placeholder="Child's name" id="anak-${anakCount}">
+    <button type="button" class="remove-btn" onclick="this.parentElement.remove()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>`;
+  container.appendChild(div);
+}
+
+function toggleTglMeninggal() {
+  const s = document.getElementById('status').value;
+  const w = document.getElementById('tgl-meninggal-wrap');
+  if (s === 'Almarhum') { w.classList.remove('hidden'); } else { w.classList.add('hidden'); document.getElementById('tglMeninggal').value=''; }
+}
+
+function resetFormState() {
+  document.getElementById('familyForm').reset();
+  document.getElementById('edit-id').value = '';
+  document.getElementById('form-heading').innerHTML = 'Add New <span style="color:var(--sage);">Family Member</span>';
+  document.getElementById('anak-container').innerHTML = '';
+  anakCount = 0;
+  document.getElementById('alamat').value = '';
+  document.getElementById('noHp').value = '';
+  document.getElementById('tglMeninggal').value = '';
+  document.getElementById('tgl-meninggal-wrap').classList.add('hidden');
+  newPhotoData = ''; oldPhotoUrl = '';
+  const img = document.getElementById('preview-foto');
+  img.src = ''; img.classList.add('hidden');
+  document.getElementById('placeholder-foto').style.display = '';
+  document.getElementById('file-name').textContent = 'Click circle to upload photo';
+  document.getElementById('input-foto').value = '';
+  currentStep = 1;
+  for(let i=1;i<=3;i++) {const el=document.getElementById('step-'+i);if(el) el.classList.toggle('hidden',i!==1);}
+  for(let i=1;i<=3;i++) {const d=document.getElementById('sp'+i);if(d) d.classList.toggle('active',i===1);}
+}
+
+// ============================================================
+// FORM SUBMIT
+// ============================================================
+document.getElementById('familyForm').addEventListener('submit', function(e) {
+  e.preventDefault();
+  const anakList = [];
+  document.querySelectorAll('input[id^="anak-"]').forEach(inp => {
+    if (inp.value && inp.value.trim()) anakList.push({ nama: inp.value.trim() });
+  });
+  const formData = {
+    id: document.getElementById('edit-id').value || null,
+    nama: document.getElementById('nama').value,
+    gender: document.getElementById('gender').value,
+    generasi: document.getElementById('generasi').value,
+    parentId: document.getElementById('orangTua').value,
+    status: document.getElementById('status').value,
+    pasangan: document.getElementById('pasangan').value || '-',
+    alamat: document.getElementById('alamat').value || '',
+    noHp: document.getElementById('noHp').value || '',
+    tglMeninggal: document.getElementById('tglMeninggal').value || '',
+    anak: anakList,
+    newPhotoData: newPhotoData,
+    oldPhotoUrl: oldPhotoUrl
+  };
+  if (!formData.parentId) { Swal.fire('Missing Field','Please select a parent.','warning'); return; }
+  Swal.fire({ title:'Saving…', html:'Storing data securely…', allowOutsideClick:false, didOpen:()=>Swal.showLoading() });
+  google.script.run
+    .withSuccessHandler(result => {
+      if (result.success) {
+        Swal.fire({ icon:'success', title:'Saved!', text:result.message, confirmButtonColor:'var(--sage-dk)', confirmButtonText:'Done' })
+          .then(() => { resetFormState(); loadDashboardStats(); initializeTree(); switchTab('dashboard'); });
+      } else {
+        Swal.fire({ icon:'error', title:'Error', text:result.message });
+      }
+    })
+    .withFailureHandler(err => Swal.fire({ icon:'error', title:'Error', text:''+err }))
+    .processForm(formData, sessionToken);
+});
+
+// ============================================================
+// GENERATION COLOR SYSTEM
+// ============================================================
+const GEN_COLORS = [
+  { bg:'#fef3c7', accent:'#d97706', text:'#78350f', border:'#fcd34d' },
+  { bg:'#fce7f3', accent:'#db2777', text:'#831843', border:'#f9a8d4' },
+  { bg:'#d1fae5', accent:'#059669', text:'#065f46', border:'#6ee7b7' },
+  { bg:'#dbeafe', accent:'#2563eb', text:'#1e40af', border:'#93c5fd' },
+  { bg:'#ffedd5', accent:'#ea580c', text:'#9a3412', border:'#fdba74' },
+  { bg:'#ede9fe', accent:'#7c3aed', text:'#5b21b6', border:'#c4b5fd' },
+  { bg:'#fdf4ff', accent:'#a21caf', text:'#701a75', border:'#e879f9' },
+  { bg:'#ecfdf5', accent:'#16a34a', text:'#14532d', border:'#86efac' },
+  { bg:'#fff7ed', accent:'#c2410c', text:'#7c2d12', border:'#fdba74' },
+  { bg:'#f0f9ff', accent:'#0284c7', text:'#075985', border:'#7dd3fc' },
+];
+function getGenColor(genStr) {
+  const n = parseInt((genStr||'').replace(/\D/g,'')) || 1;
+  return GEN_COLORS[(n-1) % GEN_COLORS.length];
+}
+
+// ============================================================
+// TREE INITIALIZATION & RENDER
+// ============================================================
+function initializeTree() {
+  google.script.run
+    .withSuccessHandler(data => {
+      if (!data) {
+        document.getElementById('tree-container').innerHTML =
+          '<div style="display:flex;height:100%;align-items:center;justify-content:center;color:rgba(255,255,255,0.3);font-size:1rem;">No family data yet</div>';
+        return;
+      }
+      renderTree(data);
+    })
+    .getFamilyTreeData();
+}
+
+function renderTree(treeData) {
+  document.getElementById('tree-container').innerHTML = '';
+  allExpanded = false;
+  const btnExp = document.getElementById('btn-expand-all');
+  const lblExp = document.getElementById('label-expand-all');
+  if (btnExp) { btnExp.classList.remove('active'); }
+  if (lblExp) { lblExp.textContent = 'Expand'; }
+
+  const width = window.innerWidth;
+  const height = window.innerHeight - 68;
+  const NODE_W = 255, NODE_H = 96, NODE_RX = 16, DEPTH = 295;
+
+  svg = d3.select('#tree-container').append('svg')
+    .attr('width', width).attr('height', height)
+    .style('cursor','grab');
+
+  const defs = svg.append('defs');
+  const flt = defs.append('filter').attr('id','cardshadow').attr('x','-20%').attr('y','-20%').attr('width','140%').attr('height','160%');
+  flt.append('feDropShadow').attr('dx',0).attr('dy',3).attr('stdDeviation',8).attr('flood-color','rgba(0,0,0,0.13)');
+
+  g = svg.append('g');
+  zoom = d3.zoom().scaleExtent([0.06,3]).on('zoom', e => g.attr('transform', e.transform));
+  svg.call(zoom).on('dblclick.zoom', null);
+
+  const treemap = d3.tree().nodeSize([NODE_H+24, DEPTH]).separation((a,b) => a.parent===b.parent ? 1.15 : 1.4);
+  root = d3.hierarchy(treeData, d => d.children);
+  root.x0 = 0; root.y0 = 0;
+  if (root.children) root.children.forEach(collapse);
+
+  buildGenLegend(root);
+  update(root);
+  resetZoom();
+  treeUpdate = update;
+
+  function collapse(d) { if(d.children){d._children=d.children;d._children.forEach(collapse);d.children=null;} }
+  function expandAll(d) { if(d._children){d.children=d._children;d._children=null;} if(d.children)d.children.forEach(expandAll); }
+  function collapseAll(d) { if(d.children){d._children=d.children;d._children.forEach(collapseAll);d.children=null;} }
+
+  window.toggleExpandAll = function() {
+    if (!root||!treeUpdate) return;
+    allExpanded = !allExpanded;
+    if (allExpanded) { expandAll(root); } else { if(root.children)root.children.forEach(collapseAll); }
+    treeUpdate(root);
+    const btn = document.getElementById('btn-expand-all');
+    const lbl = document.getElementById('label-expand-all');
+    if (allExpanded) { if(btn)btn.classList.add('active'); if(lbl)lbl.textContent='Collapse'; }
+    else { if(btn)btn.classList.remove('active'); if(lbl)lbl.textContent='Expand'; }
+    setTimeout(()=>resetZoom(),500);
+  };
+
+  function buildGenLegend(r) {
+    const genSet = new Set();
+    r.each(d => { if(d.data.generation) genSet.add(d.data.generation); });
+    const gens = Array.from(genSet).sort((a,b)=>parseInt(a.replace(/\D/g,''))-parseInt(b.replace(/\D/g,'')));
+    const cont = document.getElementById('gen-legend-items');
+    cont.innerHTML = '';
+    gens.forEach(gen => {
+      const c = getGenColor(gen);
+      const el = document.createElement('div');
+      el.style.cssText = `display:flex;align-items:center;gap:5px;padding:3px 8px;border-radius:8px;font-size:11px;font-weight:700;background:${c.bg};color:${c.text};border:1.5px solid ${c.border};white-space:nowrap;`;
+      el.innerHTML = `<span style="width:7px;height:7px;border-radius:50%;background:${c.accent};flex-shrink:0;display:inline-block;"></span>${gen}`;
+      cont.appendChild(el);
+    });
+    const leg = document.getElementById('gen-legend');
+    if (gens.length>0) leg.classList.remove('hidden');
+  }
+
+  function update(source) {
+    const td = treemap(root);
+    const nodes = td.descendants();
+    const links = td.links();
+    nodes.forEach(d => { d.y = d.depth * DEPTH; });
+
+    let i=0;
+    const node = g.selectAll('g.node').data(nodes, d => d.id||(d.id=++i));
+    const HALF_W=NODE_W/2, HALF_H=NODE_H/2;
+    const AVX=-HALF_W+48, AVY=12, AVR=25;
+
+    const nodeEnter = node.enter().append('g')
+      .attr('class','node')
+      .attr('transform', d=>`translate(${source.y0||0},${source.x0||0})`)
+      .style('opacity',0)
+      .on('click', click);
+
+    // Card shadow base
+    nodeEnter.append('rect').attr('class','card-bg')
+      .attr('width',NODE_W).attr('height',NODE_H).attr('x',-HALF_W).attr('y',-HALF_H)
+      .attr('rx',NODE_RX).attr('fill','#fff').attr('filter','url(#cardshadow)');
+
+    // Left accent bar
+    nodeEnter.append('rect').attr('width',5).attr('height',NODE_H-20)
+      .attr('x',-HALF_W).attr('y',-HALF_H+10).attr('rx',3)
+      .attr('fill', d=>getGenColor(d.data.generation).accent);
+
+    // Card face
+    nodeEnter.append('rect').attr('class','card-face')
+      .attr('width',NODE_W).attr('height',NODE_H).attr('x',-HALF_W).attr('y',-HALF_H)
+      .attr('rx',NODE_RX).attr('fill','rgba(255,255,255,0.97)')
+      .attr('stroke',d=>getGenColor(d.data.generation).border).attr('stroke-width',1.5);
+
+    // Header band
+    nodeEnter.append('rect').attr('width',NODE_W-2).attr('height',22)
+      .attr('x',-HALF_W+1).attr('y',-HALF_H+1).attr('rx',NODE_RX-1)
+      .attr('fill',d=>getGenColor(d.data.generation).bg);
+    nodeEnter.append('rect').attr('width',NODE_W-2).attr('height',12)
+      .attr('x',-HALF_W+1).attr('y',-HALF_H+12)
+      .attr('fill',d=>getGenColor(d.data.generation).bg);
+
+    // Gen label
+    nodeEnter.append('text').attr('x',-HALF_W+14).attr('y',-HALF_H+15).attr('text-anchor','start')
+      .style('font-size','9.5px').style('font-weight','800').style('letter-spacing','.06em').style('font-family','DM Sans,sans-serif')
+      .attr('fill',d=>getGenColor(d.data.generation).text)
+      .text(d=>d.data.generation||'');
+
+    // Status dot
+    nodeEnter.append('circle').attr('cx',HALF_W-12).attr('cy',-HALF_H+12).attr('r',5)
+      .attr('fill',d=>d.data.status==='Hidup'?'#10b981':'#94a3b8').attr('stroke','#fff').attr('stroke-width',2);
+
+    // Avatar ring
+    nodeEnter.append('circle').attr('cx',AVX).attr('cy',AVY).attr('r',AVR+3)
+      .attr('fill',d=>getGenColor(d.data.generation).bg)
+      .attr('stroke',d=>getGenColor(d.data.generation).border).attr('stroke-width',1.5);
+
+    // Clip path
+    nodeEnter.append('defs').append('clipPath').attr('id',d=>'clip-'+d.id)
+      .append('circle').attr('cx',AVX).attr('cy',AVY).attr('r',AVR);
+
+    // Photo
+    nodeEnter.filter(d=>d.data.foto).append('image')
+      .attr('href',d=>getDisplayUrl(d.data.foto))
+      .attr('x',AVX-AVR).attr('y',AVY-AVR).attr('width',AVR*2).attr('height',AVR*2)
+      .attr('preserveAspectRatio','xMidYMid slice').attr('clip-path',d=>'url(#clip-'+d.id+')');
+
+    // Default avatar (SVG person icon inline as foreignObject approximation via text)
+    nodeEnter.filter(d=>!d.data.foto).append('text')
+      .attr('x',AVX).attr('y',AVY+9).attr('text-anchor','middle')
+      .style('font-size','24px').style('font-family','sans-serif')
+      .text(d=>{
+        const n=parseInt((d.data.generation||'').replace(/\D/g,''))||1;
+        if(n<=1) return d.data.gender==='P'?'👵':'👴';
+        if(n<=3) return d.data.gender==='P'?'👩':'👨';
+        if(n<=5) return d.data.gender==='P'?'👧':'👦';
+        return '👶';
+      });
+
+    // Gender badge
+    nodeEnter.append('rect').attr('width',22).attr('height',13).attr('x',AVX-11).attr('y',AVY+AVR-1).attr('rx',7)
+      .attr('fill',d=>d.data.gender==='P'?'#fce7f3':'#dbeafe')
+      .attr('stroke',d=>d.data.gender==='P'?'#f9a8d4':'#93c5fd').attr('stroke-width',1.2);
+    nodeEnter.append('text').attr('x',AVX).attr('y',AVY+AVR+9).attr('text-anchor','middle')
+      .style('font-size','9px').style('font-weight','800').style('font-family','DM Sans,sans-serif')
+      .attr('fill',d=>d.data.gender==='P'?'#db2777':'#2563eb')
+      .text(d=>d.data.gender==='P'?'♀':'♂');
+
+    // Text: Name
+    const TX = AVX+AVR+12;
+    nodeEnter.append('text').attr('x',TX).attr('y',AVY-10).attr('text-anchor','start')
+      .style('font-size','13.5px').style('font-weight','800').style('font-family','DM Sans,sans-serif').attr('fill','#0d1117')
+      .text(d=>{ const nm=d.data.name||''; return nm.length>16?nm.substring(0,16)+'…':nm; });
+
+    // Text: Spouse
+    nodeEnter.append('text').attr('x',TX).attr('y',AVY+6).attr('text-anchor','start')
+      .style('font-size','10.5px').style('font-weight','500').style('font-family','DM Sans,sans-serif').attr('fill','#64748b')
+      .text(d=>{ const p=d.data.pasangan; if(!p||p==='-')return ''; const l=p.length>14?p.substring(0,14)+'…':p; return '♥ '+l; });
+
+    // Text: Phone
+    nodeEnter.append('text').attr('x',TX).attr('y',AVY+21).attr('text-anchor','start')
+      .style('font-size','9.5px').style('font-weight','500').style('font-family','DM Sans,sans-serif').attr('fill','#94a3b8')
+      .text(d=>d.data.noHp?'✆ '+d.data.noHp:'');
+
+    // Expand button
+    const expG = nodeEnter.filter(d=>d.children||d._children).append('g')
+      .attr('class','expand-btn').attr('transform',`translate(${HALF_W+1},0)`).style('cursor','pointer')
+      .on('click', (event,d)=>{
+        event.stopPropagation();
+        if(d.children){d._children=d.children;d.children=null;}else{d.children=d._children;d._children=null;}
+        update(d);
+      });
+    expG.append('circle').attr('r',12).attr('fill',d=>getGenColor(d.data.generation).accent)
+      .attr('stroke','#fff').attr('stroke-width',2.5)
+      .style('filter','drop-shadow(0 2px 5px rgba(0,0,0,0.18))');
+    expG.append('text').attr('dy',6).attr('text-anchor','middle')
+      .style('font-size','18px').style('font-weight','900').style('font-family','DM Sans,sans-serif').attr('fill','#fff')
+      .text(d=>d._children?'+':'−');
+
+    // Child count
+    nodeEnter.filter(d=>d.children||d._children).append('text')
+      .attr('x',HALF_W+1).attr('y',26).attr('text-anchor','middle')
+      .style('font-size','8.5px').style('font-weight','700').style('font-family','DM Sans,sans-serif')
+      .attr('fill',d=>getGenColor(d.data.generation).accent)
+      .text(d=>{ const k=(d.children||d._children||[]).length; return k>0?k+' child'+(k>1?'ren':''):''; });
+
+    // Merge & transition
+    const nodeUpdate = node.merge(nodeEnter).transition().duration(480).ease(d3.easeCubicOut)
+      .attr('transform',d=>`translate(${d.y},${d.x})`).style('opacity',1);
+    nodeUpdate.select('.expand-btn text').text(d=>d._children?'+':'−');
+
+    node.exit().transition().duration(380).attr('transform',d=>`translate(${source.y},${source.x})`).style('opacity',0).remove();
+
+    // Links
+    const link = g.selectAll('path.link').data(links, d=>d.target.id);
+    const linkEnter = link.enter().insert('path','g').attr('class','link')
+      .attr('d',()=>{ const o={x:source.x0||0,y:source.y0||0}; return diag(o,o); }).style('opacity',0);
+    link.merge(linkEnter).transition().duration(480).ease(d3.easeCubicOut)
+      .attr('d',d=>diag(d.source,d.target)).style('opacity',1)
+      .attr('stroke',d=>getGenColor(d.target.data.generation).accent).attr('stroke-width',2)
+      .attr('stroke-dasharray',d=>d.target.data.status==='Almarhum'?'6,4':'none')
+      .attr('fill','none').attr('stroke-opacity',0.5);
+    link.exit().transition().duration(300).style('opacity',0).remove();
+
+    nodes.forEach(d=>{ d.x0=d.x; d.y0=d.y; });
+  }
+
+  function diag(s,d) { const mx=(s.y+d.y)/2; return `M ${s.y} ${s.x} C ${mx} ${s.x}, ${mx} ${d.x}, ${d.y} ${d.x}`; }
+
+  function click(event, d) {
+    const c = getGenColor(d.data.generation);
+    let imgHtml = d.data.foto
+      ? `<div style="display:flex;justify-content:center;margin-bottom:1.25rem;"><div style="width:90px;height:90px;border-radius:50%;border:3px solid ${c.border};overflow:hidden;box-shadow:0 6px 20px rgba(0,0,0,0.12);"><img src="${getDisplayUrl(d.data.foto)}" style="width:100%;height:100%;object-fit:cover;"></div></div>`
+      : `<div style="display:flex;justify-content:center;margin-bottom:1.25rem;"><div style="width:80px;height:80px;border-radius:50%;background:${c.bg};border:2px solid ${c.border};display:flex;align-items:center;justify-content:center;font-size:2.2rem;">${d.data.gender==='P'?'♀':'♂'}</div></div>`;
+
+    const statusCol = d.data.status==='Hidup'?'#10b981':'#94a3b8';
+
+    let rows = `
+      <div style="display:flex;align-items:center;gap:.6rem;padding:.55rem 0;border-bottom:1px solid #f1f5f9;">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="${c.accent}" stroke-width="2" stroke-linecap="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+        <span style="font-size:.875rem;font-weight:600;color:#475569;">${d.data.generation||'—'}</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:.6rem;padding:.55rem 0;border-bottom:1px solid #f1f5f9;">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="${statusCol}" stroke-width="2" stroke-linecap="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        <span style="font-size:.875rem;font-weight:700;color:${statusCol};">${d.data.status==='Hidup'?'Living':'Deceased'}</span>
+      </div>`;
+
+    if (d.data.status==='Almarhum'&&d.data.tglMeninggal) {
+      const parts=d.data.tglMeninggal.split('-');
+      const dateStr=parts.length===3?new Date(+parts[0],+parts[1]-1,+parts[2]).toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'}):d.data.tglMeninggal;
+      rows+=`<div style="display:flex;align-items:center;gap:.6rem;padding:.55rem 0;border-bottom:1px solid #f1f5f9;">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        <span style="font-size:.875rem;color:#94a3b8;">${dateStr}</span></div>`;
+    }
+    if (d.data.pasangan&&d.data.pasangan!=='-') {
+      rows+=`<div style="display:flex;align-items:center;gap:.6rem;padding:.55rem 0;border-bottom:1px solid #f1f5f9;">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#f43f5e" stroke-width="2" stroke-linecap="round"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
+        <span style="font-size:.875rem;font-weight:600;color:#475569;">${d.data.pasangan}</span></div>`;
+    }
+    if (d.data.alamat) {
+      rows+=`<div style="display:flex;align-items:start;gap:.6rem;padding:.55rem 0;border-bottom:1px solid #f1f5f9;">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2" stroke-linecap="round" style="margin-top:1px;flex-shrink:0;"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+        <span style="font-size:.875rem;color:#475569;line-height:1.5;">${d.data.alamat}</span></div>`;
+    }
+    if (d.data.noHp) {
+      const raw=d.data.noHp.replace(/[\s\-().]/g,'');
+      const wa=raw.startsWith('0')?'62'+raw.slice(1):raw.startsWith('+')?raw.slice(1):raw;
+      rows+=`<div style="display:flex;align-items:center;gap:.6rem;padding:.55rem 0;">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#25D366" stroke-width="2" stroke-linecap="round"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.82 19.79 19.79 0 01.02 1.18 2 2 0 012 0h3a2 2 0 012 1.72c.13.96.4 1.9.7 2.81a2 2 0 01-.45 2.11L6.18 7.55a16 16 0 006.27 6.27l1.41-1.41a2 2 0 012.11-.45c.9.36 1.86.6 2.81.7A2 2 0 0122 14.87v2.05z"/></svg>
+        <a href="https://wa.me/${wa}" target="_blank" style="font-size:.875rem;font-weight:600;color:#25D366;text-decoration:none;">${d.data.noHp}</a></div>`;
+    }
+
+    const canEdit = sessionRole==='admin'||(sessionGenerasi===d.data.generation);
+    const editBtns = canEdit ? `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.6rem;margin-top:1rem;">
+        <button onclick="window.triggerEdit('${d.data.id}')" style="display:flex;align-items:center;justify-content:center;gap:.4rem;padding:.65rem;border-radius:12px;background:#fefce8;color:#92400e;border:1.5px solid #fde68a;font-weight:700;font-size:.85rem;cursor:pointer;">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>Edit
+        </button>
+        <button onclick="window.triggerDelete('${d.data.id}','${d.data.name.replace(/'/g,"\\'")}'" style="display:flex;align-items:center;justify-content:center;gap:.4rem;padding:.65rem;border-radius:12px;background:#fef2f2;color:#b91c1c;border:1.5px solid #fecaca;font-weight:700;font-size:.85rem;cursor:pointer;">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>Remove
+        </button>
+      </div>` : `<p style="text-align:center;font-size:.8rem;color:var(--mist);margin-top:1rem;padding:.5rem;background:var(--frost);border-radius:10px;">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="vertical-align:-1px;margin-right:3px;"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+        You don't have edit permissions for this record.</p>`;
+
+    Swal.fire({
+      title: `<span style="font-family:'Cormorant Garamond',serif;font-weight:700;font-size:1.5rem;">${d.data.name}</span>`,
+      html: `<div style="text-align:left;">${imgHtml}<div style="border-radius:14px;padding:.75rem 1rem;background:${c.bg};border:1.5px solid ${c.border};margin-bottom:.25rem;">${rows}</div>${editBtns}</div>`,
+      showConfirmButton: false,
+      showCloseButton: true,
+      customClass: { popup: 'rounded-3xl' }
+    });
+  }
+}
+
+function resetZoom() {
+  if (!svg||!zoom) return;
+  svg.transition().duration(700).call(zoom.transform, d3.zoomIdentity.translate(window.innerWidth/2-130,90).scale(0.72));
+}
+
+// ============================================================
+// LEGEND TOGGLES
+// ============================================================
+function toggleInfoLegend() {
+  const p=document.getElementById('info-legend-panel');
+  const c=document.getElementById('info-legend-chevron');
+  const h=p.classList.toggle('hidden');
+  c.style.transform=h?'rotate(0deg)':'rotate(180deg)';
+}
+function toggleGenLegend() {
+  const p=document.getElementById('gen-legend-panel');
+  const c=document.getElementById('gen-legend-chevron');
+  const h=p.classList.toggle('hidden');
+  c.style.transform=h?'rotate(0deg)':'rotate(180deg)';
+}
+
+// ============================================================
+// CRUD: EDIT & DELETE
+// ============================================================
+window.triggerEdit = function(id) {
+  Swal.close();
+  Swal.fire({ title:'Loading…', didOpen:()=>Swal.showLoading() });
+  google.script.run.withSuccessHandler(data => {
+    Swal.close();
+    if (!data) return;
+    switchTab('form');
+    document.getElementById('form-heading').innerHTML = `Edit <span style="color:var(--sage);">${data.nama}</span>`;
+    document.getElementById('edit-id').value = data.id;
+    document.getElementById('nama').value = data.nama;
+    document.getElementById('gender').value = data.gender;
+    document.getElementById('generasi').value = data.generasi;
+    loadParentsListWithSelection(data.generasi, data.parentId);
+    document.getElementById('status').value = data.status;
+    document.getElementById('pasangan').value = data.pasangan==='-'?'':data.pasangan;
+    document.getElementById('alamat').value = data.alamat||'';
+    document.getElementById('noHp').value = data.noHp||'';
+    document.getElementById('tglMeninggal').value = data.tglMeninggal||'';
+    toggleTglMeninggal();
+    oldPhotoUrl = data.foto||''; newPhotoData='';
+    if (data.foto&&data.foto.length>5) {
+      const img=document.getElementById('preview-foto');
+      img.src=getDisplayUrl(data.foto); img.classList.remove('hidden');
+      document.getElementById('placeholder-foto').style.display='none';
+      document.getElementById('file-name').textContent='Photo saved';
+    }
+    document.getElementById('anak-container').innerHTML=''; anakCount=0;
+    if (data.anak&&data.anak!=='-') {
+      data.anak.split(', ').forEach(n=>{ addAnakField(); document.getElementById('anak-'+anakCount).value=n; });
+    }
+    for(let i=1;i<=3;i++){const el=document.getElementById('step-'+i);if(el)el.classList.toggle('hidden',i!==1);}
+    for(let i=1;i<=3;i++){const d=document.getElementById('sp'+i);if(d)d.classList.toggle('active',i===1);}
+    currentStep=1;
+  }).withFailureHandler(err=>Swal.fire('Error',''+err,'error')).getMemberById(id);
+};
+
+window.triggerDelete = function(id, name) {
+  Swal.fire({
+    title:'Remove Member?',
+    html:`<p style="color:var(--mist);">This will permanently delete <strong>${name}</strong> from the archive. This action cannot be undone.</p>`,
+    icon:'warning', showCancelButton:true,
+    confirmButtonColor:'#ef4444', cancelButtonColor:'#cbd5e1',
+    confirmButtonText:'Yes, Remove', cancelButtonText:'Cancel',
+    customClass:{popup:'rounded-3xl'}
+  }).then(r => {
+    if (r.isConfirmed) {
+      Swal.fire({ title:'Removing…', didOpen:()=>Swal.showLoading() });
+      google.script.run
+        .withSuccessHandler(res => {
+          if(res.success){Swal.fire({icon:'success',title:'Removed',text:res.message,customClass:{popup:'rounded-3xl'}});initializeTree();loadDashboardStats();}
+          else Swal.fire('Failed',res.message,'error');
+        })
+        .deleteMember(id, sessionToken);
+    }
+  });
+};
+
+// ============================================================
+// SESSION & AUTH
+// ============================================================
+function setLoginRole(role) {
+  loginRole = role;
+  const aBt=document.getElementById('role-btn-admin');
+  const uBt=document.getElementById('role-btn-user');
+  const gW=document.getElementById('login-generasi-wrap');
+  if(role==='admin'){
+    aBt.classList.add('active'); uBt.classList.remove('active'); gW.classList.add('hidden');
+  } else {
+    uBt.classList.add('active'); aBt.classList.remove('active'); gW.classList.remove('hidden');
+    const sel=document.getElementById('login-generasi');
+    if(sel.options.length<=1){
+      for(let i=1;i<=10;i++){const o=document.createElement('option');o.value=`Generasi ${i}`;o.textContent=`Generation ${i}`;sel.appendChild(o);}
+    }
+  }
+}
+
+function initSession() {
+  const savedToken=sessionStorage.getItem('sst');
+  if(savedToken){
+    google.script.run.withSuccessHandler(session=>{
+      if(session){
+        sessionToken=savedToken; sessionRole=session.role; sessionGenerasi=session.generasi;
+        document.getElementById('login-overlay').style.display='none';
+        applyRoleUI(); bootApp();
+      } else {
+        sessionStorage.removeItem('sst'); sessionStorage.removeItem('ssr'); sessionStorage.removeItem('ssg');
+        showLoginOverlay();
+      }
+    }).validateSession(savedToken);
+  } else { showLoginOverlay(); }
+}
+
+function showLoginOverlay() {
+  const o=document.getElementById('login-overlay');
+  o.style.display='flex'; o.style.opacity='1';
+  setTimeout(()=>document.getElementById('login-password').focus(),300);
+}
+
+function toggleLoginPassword() {
+  const inp=document.getElementById('login-password');
+  const svg=document.getElementById('login-eye-icon');
+  inp.type=inp.type==='password'?'text':'password';
+}
+
+function doLogin() {
+  const inp=document.getElementById('login-password');
+  const errEl=document.getElementById('login-error');
+  const btn=document.getElementById('login-btn');
+  const pw=inp.value;
+  const gen=loginRole==='user'?document.getElementById('login-generasi').value:'';
+  errEl.classList.add('hidden');
+  if(!pw){errEl.textContent='Password cannot be empty.';errEl.classList.remove('hidden');return;}
+  if(loginRole==='user'&&!gen){errEl.textContent='Please select your generation.';errEl.classList.remove('hidden');return;}
+  btn.disabled=true; btn.innerHTML='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" style="animation:spin 1s linear infinite"><path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke-dasharray="60" stroke-dashoffset="60"/></svg> Verifying…';
+  google.script.run.withSuccessHandler(result=>{
+    if(result.valid){
+      sessionToken=result.token; sessionRole=result.role; sessionGenerasi=result.generasi;
+      sessionStorage.setItem('sst',sessionToken); sessionStorage.setItem('ssr',sessionRole); sessionStorage.setItem('ssg',sessionGenerasi);
+      const o=document.getElementById('login-overlay');
+      o.style.opacity='0'; o.style.transition='opacity .5s ease';
+      setTimeout(()=>o.style.display='none',500);
+      errEl.classList.add('hidden'); applyRoleUI(); bootApp();
+    } else {
+      errEl.textContent='Incorrect password. Please try again.'; errEl.classList.remove('hidden');
+      inp.value=''; inp.focus();
+      btn.disabled=false; btn.innerHTML='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg> Sign In';
+    }
+  }).withFailureHandler(()=>{
+    errEl.textContent='A connection error occurred. Please try again.'; errEl.classList.remove('hidden');
+    btn.disabled=false; btn.innerHTML='Sign In';
+  }).checkPassword(pw, loginRole, gen);
+}
+
+function doLogout() {
+  Swal.fire({
+    title:'Sign Out?', text:'You will need your password to sign back in.',
+    icon:'question', showCancelButton:true,
+    confirmButtonColor:'#ef4444', cancelButtonColor:'#e2e8f0',
+    confirmButtonText:'Sign Out', cancelButtonText:'Cancel',
+    customClass:{popup:'rounded-3xl'}
+  }).then(r=>{
+    if(r.isConfirmed){
+      google.script.run.logout(sessionToken);
+      sessionStorage.removeItem('sst'); sessionStorage.removeItem('ssr'); sessionStorage.removeItem('ssg');
+      sessionToken=null; sessionRole=null; sessionGenerasi='';
+      document.getElementById('login-password').value='';
+      document.getElementById('login-error').classList.add('hidden');
+      document.getElementById('login-btn').disabled=false;
+      document.getElementById('login-btn').innerHTML='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg> Sign In';
+      setLoginRole('admin'); showLoginOverlay();
+    }
+  });
+}
+
+function showChangePassword() {
+  Swal.fire({
+    title:'Change Password',
+    html:`
+      <div style="text-align:left;display:flex;flex-direction:column;gap:.75rem;margin-top:.5rem;">
+        <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:.75rem;font-size:.82rem;color:#1e40af;">
+          <strong>Note:</strong> This password applies to all users — administrators and members alike.
+        </div>
+        <div><label style="font-size:.82rem;font-weight:700;color:var(--stone);display:block;margin-bottom:.3rem;">Current Password</label>
+        <input type="password" id="swal-old-pass" style="width:100%;border:1.5px solid var(--pearl);border-radius:10px;padding:.7rem .9rem;font-size:.9rem;outline:none;" placeholder="Enter current password"></div>
+        <div><label style="font-size:.82rem;font-weight:700;color:var(--stone);display:block;margin-bottom:.3rem;">New Password</label>
+        <input type="password" id="swal-new-pass" style="width:100%;border:1.5px solid var(--pearl);border-radius:10px;padding:.7rem .9rem;font-size:.9rem;outline:none;" placeholder="Minimum 6 characters"></div>
+        <div><label style="font-size:.82rem;font-weight:700;color:var(--stone);display:block;margin-bottom:.3rem;">Confirm New Password</label>
+        <input type="password" id="swal-confirm-pass" style="width:100%;border:1.5px solid var(--pearl);border-radius:10px;padding:.7rem .9rem;font-size:.9rem;outline:none;" placeholder="Repeat new password"></div>
+      </div>`,
+    confirmButtonText:'Save Password', confirmButtonColor:'var(--sage-dk)',
+    showCancelButton:true, cancelButtonText:'Cancel',
+    customClass:{popup:'rounded-3xl'},
+    preConfirm:()=>{
+      const op=document.getElementById('swal-old-pass').value;
+      const np=document.getElementById('swal-new-pass').value;
+      const cp=document.getElementById('swal-confirm-pass').value;
+      if(!op||!np||!cp){Swal.showValidationMessage('All fields are required');return false;}
+      if(np!==cp){Swal.showValidationMessage('New passwords do not match');return false;}
+      if(np.length<6){Swal.showValidationMessage('New password must be at least 6 characters');return false;}
+      return {oldPass:op,newPass:np};
+    }
+  }).then(r=>{
+    if(r.isConfirmed){
+      Swal.fire({title:'Saving…',didOpen:()=>Swal.showLoading()});
+      google.script.run.withSuccessHandler(res=>{
+        res.success
+          ?Swal.fire({icon:'success',title:'Password Updated',text:res.message,customClass:{popup:'rounded-3xl'}})
+          :Swal.fire({icon:'error',title:'Failed',text:res.message});
+      }).changePassword(sessionToken,r.value.oldPass,r.value.newPass);
+    }
+  });
+}
+
+// Spin keyframe for loading indicator
+const spinStyle = document.createElement('style');
+spinStyle.textContent = '@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}';
+document.head.appendChild(spinStyle);
+</script>
+</body>
+</html>
